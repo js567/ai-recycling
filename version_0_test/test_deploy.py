@@ -6,14 +6,15 @@
 
 import torch
 import cv2
+import sys
 import pandas as pd
 import numpy as np
 
-model = torch.hub.load('ultralytics/yolov5', 'custom', 'best.pt', force_reload=True)
+model = torch.hub.load('ultralytics/yolov5', 'custom', 'best.pt', force_reload = False)
 
 # will take a list of bounding boxes and return a list of indices
 # indicating what order the robot should pick objects up in
-def pickup_order (bounding_boxes: list) -> list:
+def pickup_order (results) -> list:
     return None
 
 # pick_n_frames is used to select n ideal frames to test pickup_order
@@ -43,13 +44,12 @@ def pick_n_frames(cap: cv2.VideoCapture, model, samples: int = 100, n: int = 10)
         ret, frame = cap.read()
         
         if ret:
-            results = model(frame)
-            model_samples.append((len(results.xyxy), results))
+            results = model(frame).pandas().xyxy[0]
+            model_samples.append(results)
 
     # return top n frames
-    # it's a list of tuples and k = lambda a: a[0] just
-    # says we are sorting by the first element of each tuple (number of objects)
-    return sorted(model_samples, key = lambda a: a[0], reverse=True)[0:n]
+    # sort by number of items seen
+    return sorted(model_samples, key = lambda a: a.shape[0], reverse=True)[0:n]
 
 def test_pickup_order():
     cap = cv2.VideoCapture("./far_west_test_video.mp4")
