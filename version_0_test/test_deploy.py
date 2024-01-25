@@ -12,24 +12,50 @@ import numpy as np
 
 model = torch.hub.load('ultralytics/yolov5', 'custom', 'best.pt', force_reload = False)
 
-# will take a list of bounding boxes and return a list of indices
-# indicating what order the robot should pick objects up in
-def pickup_order (results) -> list:
-    return None
+def get_occlusions (bounding_boxes: pd.DataFrame) -> list:
+    """Returns which objects are overlapping. Return type is a list of indices
 
-# pick_n_frames is used to select n ideal frames to test pickup_order
-# it selects a random sample of frames and picks n which have the most objects
-# 
-# since reading a frame can fail (cap.read()), you are not necessarily guarunteed
-# n frames
-# 
-# also this takes me like 2 minutes to run on my laptop so yeah
-#
-# cap -> video capture from opencv (has to be opened)
-# model -> YOLOv5 model
-# samples -> how many random frames to pick from the video
-# n -> number of frames to take from samples 
-def pick_n_frames(cap: cv2.VideoCapture, model, samples: int = 100, n: int = 10) -> list:
+    Columns for the DataFrame input: xmin, ymin, xmax, ymax, confidence, class, name
+                                     float64, float64, float64, float64, float64, int64, object (string)
+
+    @param results: a list of bounding_boxes (pandas Dataframe). Each row is a box.
+    """
+    
+    return []
+
+def pickup_order (bounding_boxes: pd.DataFrame) -> pd.DataFrame:
+    """Determines the optimal order to pick up objects in. Returns a sorted version of bounding_boxes.
+
+    Columns for the dataframe: xmin, ymin, xmax, ymax, confidence, class, name
+                               float64, float64, float64, float64, float64, int64, object (string)
+
+    @param results: a list of bounding boxes (as a pandas dataframe)
+    """
+
+    # figure out which ones are overlapping
+    indices_to_remove = get_occlusions(bounding_boxes)
+
+    # drop those rows from the data frame
+    items_to_pickup = bounding_boxes.drop(indices_to_remove)
+
+    # sort indices by which one has the largest y value
+    # this should give us the items that are the closest to the end of the line
+    return items_to_pickup.sort_values(by=['ymax'], ascending=False)
+
+def pick_n_frames(cap: cv2.VideoCapture, model, samples: int = 50, n: int = 7) -> list:
+    """Picks ideal frames from a video to test with. Tries to get a good number of objects.
+    
+    Works by picking random frames and sorting those by the number of objects.
+
+    Returns a list of pandas Dataframes. Each item in the array is the list of bounding boxes
+    identified by YOLOv5 for that frame.
+
+    @param cap: the opened video capture from opencv
+    @param model: the YOLOv5 model object
+    @param samples: the number of random samples to take from the video
+    @param n: how many frames to take out of samples
+    """
+
     # number of frames in the video
     nframes = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
@@ -55,10 +81,11 @@ def test_pickup_order():
     cap = cv2.VideoCapture("./far_west_test_video.mp4")
 
     test_frames = pick_n_frames(cap, model)
-
+    
     cap.release()
 
-    pickup_order(test_frames)
+    for i, bounding_boxes in enumerate(test_frames):
+        test_frames[i] = pickup_order(bounding_boxes)
 
 if __name__ == "__main__":
     test_pickup_order()
