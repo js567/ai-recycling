@@ -61,7 +61,7 @@ def pickup_order (bounding_boxes: pd.DataFrame) -> pd.DataFrame:
 
     # sort indices by which one has the largest y value
     # this should give us the items that are the closest to the end of the line
-    return items_to_pickup.sort_values(by=['ymax'], ascending=False)
+    return items_to_pickup.sort_values(by=['ymin'], ascending=True)
 
 def pick_n_frames(cap: cv2.VideoCapture, model, samples: int = 50, n: int = 7) -> list:
     """Picks ideal frames from a video to test with. Tries to get a good number of objects.
