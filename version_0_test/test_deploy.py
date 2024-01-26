@@ -21,7 +21,28 @@ def get_occlusions (bounding_boxes: pd.DataFrame) -> list:
     @param results: a list of bounding_boxes (pandas Dataframe). Each row is a box.
     """
     
-    return []
+    # list of indices to remove
+    indices_to_remove = []
+
+    # iterate through each row
+    for i, row in bounding_boxes.iterrows():
+        # iterate through each row again
+        for j, row2 in bounding_boxes.iterrows():
+            # don't compare to self
+            if i == j:
+                continue
+
+            # if the x values overlap
+            if row['xmin'] <= row2['xmax'] and row['xmax'] >= row2['xmin']:
+                # if the y values overlap
+                if row['ymin'] <= row2['ymax'] and row['ymax'] >= row2['ymin']:
+                    # if the confidence is higher, remove the other one
+                    if row['confidence'] > row2['confidence']:
+                        indices_to_remove.append(j)
+                    else:
+                        indices_to_remove.append(i)
+
+    return indices_to_remove
 
 def pickup_order (bounding_boxes: pd.DataFrame) -> pd.DataFrame:
     """Determines the optimal order to pick up objects in. Returns a sorted version of bounding_boxes.
@@ -86,6 +107,7 @@ def test_pickup_order():
 
     for i, bounding_boxes in enumerate(test_frames):
         test_frames[i] = pickup_order(bounding_boxes)
+        print(test_frames[i])
 
 if __name__ == "__main__":
     test_pickup_order()
