@@ -3,11 +3,11 @@
 # This file is for testing counting objects
 # 
 import torch
-# import cv2
 import supervision as sv
 import numpy as np
 import matplotlib.path as MPLP
 import os
+import cv2
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 
@@ -102,34 +102,44 @@ def is_in_area(xc, yc, shape):
 def main():
     model = torch.hub.load('ultralytics/yolov5', 'custom', path='best.pt', force_reload=True)
     print("Model loaded")
-    track = sv.ByteTrack()
 
-    box_annotator = sv.BoxAnnotator()
+    gen = sv.get_video_frames_generator(source_path='far_west_test_video.mp4')
+    
+    tracker = sv.ByteTrack()
+    box_annotator = sv.BoundingBoxAnnotator() 
     label_annotator = sv.LabelAnnotator()
 
-    def callback(frame: np.ndarray, _: int) -> np.ndarray:
-        detections = sv.Detections.from_yolov5(model(frame))
-        detections = track.update_with_detections(detections)
+
+    SKIP_FRAMES = 2
+    count = 0
+    while True:
+        count += 1
+        frame = next(gen)
+        if count % SKIP_FRAMES != 0:
+            continue
+
+        results = model(frame)
+        detections = sv.Detections.from_yolov5(results)
+        detections = tracker.update_with_detections(detections)
 
         labels = [
             f'{tracker_id}: {model.names[class_id]}'
             for class_id, tracker_id
             in zip(detections.class_id, detections.tracker_id)
         ]
-        annotated_frame = box_annotator.annotate(
-            frame.copy(),
-            detections=detections)
-        return label_annotator.annotate(
+
+        annotated_frame = box_annotator.annotate(scene = frame.copy(), detections= detections)
+        label_annotator.annotate(
             annotated_frame,
             detections=detections,
             labels=labels
         )
-    
-    sv.process_video(
-        source_path='far_west_test_video.mp4',
-        callback=callback,
-        target_path='output.mp4'
-    )
+        cv2.imshow('Test Video', np.squeeze(annotated_frame))
+
+        if cv2.waitKey(5) == ord('q'):
+            break
+
+    cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     main()
