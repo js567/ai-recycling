@@ -42,7 +42,7 @@ def calculate_background_percentage(b: np.array, frame) -> np.float32:
         return 1 
 
     # upper bound for each r, g, and b value
-    upper_bound = np.array([50,50,50])
+    upper_bound = np.array([90,90,90])
 
     # element-wise compare each pixel's rgb values
     # to upper_bound
