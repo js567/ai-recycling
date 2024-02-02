@@ -10,6 +10,7 @@ import os
 import cv2
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
+SKIP_FRAMES = 2
 
 # gets the bounding boxes of items that are higher than a set confidence
 # input:
@@ -44,83 +45,58 @@ def get_center(bbox):
 def is_in_area(xc, yc, shape):
     return MPLP.Path(shape).contains_point((xc, yc))
 
-# def main():
-#     model = torch.hub.load('ultralytics/yolov5', 'custom', path='C:/Users/keywo/OneDrive/Desktop/Capstone/ai-recycling/version_0_test/best.pt', force_reload=True)
-#     print("Model loaded")
-#     cap = cv2.VideoCapture('C:/Users/keywo/OneDrive/Desktop/Capstone/ai-recycling/version_0_test/far_west_test_video.mp4')
-#     print("Video loaded")
-
-#     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-#     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-#     RECTANGLE = np.array([
-#         [0, int(height * 3/4)], 
-#         [width, int(height * 3/4)],
-#         [width, int(height * 3/4 + 100)],
-#         [0, int(height * 3/4 + 100)]
-#     ])
-
-#     classes = {}
-#     print("Starting video")
-#     while cap.isOpened():
-#         ret, frame = cap.read()
-        
-#         if not ret:
-#             break
-
-#         results = model(frame)
-
-#         bounding_boxes, class_list = get_bounding_boxes(results)
-        
-#         # Count the items that are in the rectangle
-#         for box, c in zip(bounding_boxes, class_list):
-#             xc, yc = get_center(box)
-#             if is_in_area(xc, yc, RECTANGLE):
-#                 if c not in classes:
-#                     classes[c] = 0
-#                 classes[c] += 1
-
-#         # Display the counts of items on the screen
-#         for i, c in enumerate(classes):
-#             cv2.putText(img=frame, text="{}: {}".format(c, classes[c]), org=(200, (i+1)*150), fontFace=2, fontScale=3, color=(255,255,0), thickness=3)
-
-#         # Rectangle area for counting
-#         cv2.polylines(img=frame, pts=[RECTANGLE], isClosed=True, color=(0,0,255), thickness=4)
-
-#         # Display the video on across all monitors
-#         im = ResizeWithAspectRatio(np.squeeze(results.render()), width=1920)
-#         cv2.imshow('Test Video', im)
-#         # cv2.imshow('Test Video', np.squeeze(frame))
-
-
-#         if cv2.waitKey(5) == ord('q'):
-#             break
-
-#     cap.release()
-#     cv2.destroyAllWindows()
-
 def main():
-    model = torch.hub.load('ultralytics/yolov5', 'custom', path='best.pt', force_reload=True)
+    print(f'Supervision version: {sv.__version__}')
+    if sv.__version__ < '0.18.0':
+        raise ValueError('Supervision version must be at least 0.18.0')
+    
+    weights = 'best.pt' # Update this to the path of the best.pt file
+    model = torch.hub.load('ultralytics/yolov5', 'custom', path=weights, force_reload=True)
     print("Model loaded")
 
-    gen = sv.get_video_frames_generator(source_path='far_west_test_video.mp4')
+    gen = sv.get_video_frames_generator(source_path='C:/Users/keywo/OneDrive/Desktop/Capstone/ai-recycling/version_0_test/far_west_test_video.mp4')
     
-    tracker = sv.ByteTrack()
+    tracker = sv.ByteTrack() # TODO: figure out video framerate and pass it to the tracker
     box_annotator = sv.BoundingBoxAnnotator() 
     label_annotator = sv.LabelAnnotator()
 
+    # smoother = sv.DetectionsSmoother()
 
-    SKIP_FRAMES = 2
+    # Class counting.
+    # We'll put seen IDs in a set, and count the number of unique IDs for any given class.
+    # TODO: Change to a region/line based counting system. Supervision has ways to do this.
+    seen_ids = set()
+    class_counts = {}
+
     count = 0
     while True:
         count += 1
-        frame = next(gen)
+        frame = next(gen, None)
+
+        if frame is None:
+            break
+
         if count % SKIP_FRAMES != 0:
             continue
 
         results = model(frame)
         detections = sv.Detections.from_yolov5(results)
         detections = tracker.update_with_detections(detections)
+        # detections = smoother.update_with_detections(detections)
+
+        # Counting
+        try:
+            for class_id, tracker_id in zip(detections.class_id, detections.tracker_id):
+                if tracker_id not in seen_ids:
+                    seen_ids.add(tracker_id)
+                    class_counts[class_id] = class_counts.get(class_id, 0) + 1
+        except TypeError as e:
+            # Sometimes the detections are empty, and zip doesn't like that
+            pass
+
+        # Display the counts of items on the screen
+        for class_id, count in class_counts.items():
+            cv2.putText(img=frame, text=f'{model.names[class_id]}: {count}', org=(200, (class_id+1)*150), fontFace=2, fontScale=3, color=(255,255,0), thickness=3)
 
         labels = [
             f'{tracker_id}: {model.names[class_id]}'
@@ -134,10 +110,16 @@ def main():
             detections=detections,
             labels=labels
         )
-        cv2.imshow('Test Video', np.squeeze(annotated_frame))
+        resized_frame = cv2.resize(np.squeeze(annotated_frame), (1920, 1080))
+        cv2.imshow('Test Video', resized_frame)
 
         if cv2.waitKey(5) == ord('q'):
             break
+
+    # Print the counts, converting the class IDs to class names
+    for class_id, count in class_counts.items():
+        print(f'{model.names[class_id]}: {count}')
+    
 
     cv2.destroyAllWindows()
 
