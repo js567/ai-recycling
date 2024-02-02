@@ -2,6 +2,7 @@ import torch
 import cv2
 import numpy as np
 import test_deploy as t_pickup_order
+import time
 
 model = torch.hub.load('ultralytics/yolov5', 'custom', 'best.pt', force_reload=True)
 
@@ -36,6 +37,8 @@ while cap.isOpened():
         priority += 1
 
     cv2.imshow('Test Video', cv2.resize(rendered_output, (1100,750)))
+
+    time.sleep(10)
 
     if cv2.waitKey(5) == ord('q'):
         break

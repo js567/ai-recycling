@@ -3,14 +3,9 @@
 # This file is for testing pickup_order
 # 
 
-
-import torch
 import cv2
-import sys
 import pandas as pd
 import numpy as np
-
-model = torch.hub.load('ultralytics/yolov5', 'custom', 'best.pt', force_reload = False)
 
 def intersect (b1: np.array, b2: np.array) -> bool:
     """
@@ -32,9 +27,53 @@ def calculate_background_percentage(b: np.array, frame) -> np.float32:
     Takes a bounding box and a frame and returns what percent of the bounding box
     is the background (assuming background is black)
 
+    NOTE: Currently needs more testing.
+
     returns a float between 0 and 1
     """
-    return 0
+    # get position of box
+    xmin, xmax, ymin, ymax = int(b[0]), int(b[2]), int(b[1]), int(b[3])
+
+    # get just the bounding box pixels
+    region = frame[xmin:xmax, ymin:ymax]
+
+    # ¯\_(ツ)_/¯
+    if region.size == 0:
+        return 1 
+
+    # upper bound for each r, g, and b value
+    upper_bound = np.array([50,50,50])
+
+    # element-wise compare each pixel's rgb values
+    # to upper_bound
+    pixel_comparisons = region < upper_bound
+
+    # calculate how many pixels are r < 50, g < 50 and b < 50
+    # it does this by summing the comparisons from earlier (True, True, False) = 2
+    # then comparing those sums to 3
+    background_n = np.sum(np.sum(pixel_comparisons, axis=2) == 3)
+
+    # ALTERNATE CODE:
+    # the comparison earlier means that [1,1,2] < [2,2,2] is false
+    # but we would probably think that [1,1,1] is the background anyway
+    # this method uses the length of the rgb vector as a comparison instead
+    # however, this doesn't take into account the "direction" of the rgb so it would
+    # include something like [120, 1, 1] or something when it shouldn't
+    # currently it only gives a little bit more than the other method
+    #
+    # so.... the best way might be to take the dot product of each pixel and [50,50,50]?
+    # might look into that in the future
+
+        # upper bound for what pixel rgb values we
+        # will want to capture as background
+        #upper_bound = np.linalg.norm(np.array([50,50,50]))
+
+        #rgb_norms = np.linalg.norm(region, axis=2)
+
+        #background_n = np.sum(rgb_norms < upper_bound)
+
+    # return the percentage of the bounding box the background takes up
+    return background_n / region.size
 
 def get_occlusions (bounding_boxes: pd.DataFrame, frame) -> list:
     """Returns which objects are overlapping. Return type is a list of indices
@@ -71,8 +110,6 @@ def get_occlusions (bounding_boxes: pd.DataFrame, frame) -> list:
                 bj_background = calculate_background_percentage(bj, frame)
 
                 indices_to_remove.append(i) if bi_background > bj_background else indices_to_remove.append(j)
-
-
 
     return indices_to_remove
 
@@ -135,17 +172,3 @@ def pick_n_frames(cap: cv2.VideoCapture, model, samples: int = 50, n: int = 7) -
     # return top n frames
     # sort by number of items seen
     return sorted(model_samples, key = lambda a: a.shape[0], reverse=True)[0:n]
-
-def test_pickup_order():
-    cap = cv2.VideoCapture("./far_west_test_video.mp4")
-
-    test_frames = pick_n_frames(cap, model)
-    
-    cap.release()
-
-    for i, bounding_boxes in enumerate(test_frames):
-        test_frames[i] = pickup_order(bounding_boxes)
-        print(test_frames[i])
-
-if __name__ == "__main__":
-    test_pickup_order()
