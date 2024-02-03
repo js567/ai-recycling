@@ -38,8 +38,6 @@ while cap.isOpened():
 
     cv2.imshow('Test Video', cv2.resize(rendered_output, (1100,750)))
 
-    time.sleep(10)
-
     if cv2.waitKey(5) == ord('q'):
         break
 
