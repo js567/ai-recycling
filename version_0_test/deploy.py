@@ -2,7 +2,6 @@ import torch
 import cv2
 import numpy as np
 import test_deploy as t_pickup_order
-import time
 
 model = torch.hub.load('ultralytics/yolov5', 'custom', 'best.pt', force_reload=True)
 

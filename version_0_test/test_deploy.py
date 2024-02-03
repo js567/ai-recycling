@@ -7,6 +7,9 @@ import cv2
 import pandas as pd
 import numpy as np
 
+BLACK_PIXEL = np.zeros(3)
+WHITE_PIXEL = np.array([255,255,255])
+
 def intersect (b1: np.array, b2: np.array) -> bool:
     """
     Takes two bounding boxes and determines if there's an intersection
@@ -21,6 +24,20 @@ def intersect (b1: np.array, b2: np.array) -> bool:
     y_overlap = (b1[1] <= b2[1] <= b1[3]) or (b1[1] <= b2[3] <= b1[3])
 
     return x_overlap and y_overlap
+
+def transform_pixel(px: np.array) -> np.array:
+    """
+    Helper function for calculate_background_percentage
+
+    @param px: numpy array with a pixel's rgb value
+
+    outputs a white pixel or a black pixel depending on which one px is closer to
+    """
+
+    whitedist = np.linalg.norm(px-WHITE_PIXEL)
+    blackdist = np.linalg.norm(px-BLACK_PIXEL)
+
+    return WHITE_PIXEL if whitedist < blackdist else BLACK_PIXEL
 
 def calculate_background_percentage(b: np.array, frame) -> np.float32:
     """
@@ -41,6 +58,16 @@ def calculate_background_percentage(b: np.array, frame) -> np.float32:
     if region.size == 0:
         return 1 
 
+    # this is better at calculating backgrounds but is slow as shit
+    '''
+    # make every pixel either black or white
+    transformed_region = np.apply_along_axis(transform_pixel, 2, region)
+
+    # calculate the percentage of black pixels
+    return np.sum(transformed_region == WHITE_PIXEL)/region.size
+
+    '''
+    
     # upper bound for each r, g, and b value
     upper_bound = np.array([90,90,90])
 
