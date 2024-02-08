@@ -140,6 +140,46 @@ def get_occlusions (bounding_boxes: pd.DataFrame, frame) -> list:
 
     return indices_to_remove
 
+def get_occlusions_v2 (bounding_boxes: pd.DataFrame, frame) -> list:
+    """
+    Returns which objects are overlapping by iterating through columns and rows and pick the highest confidence.
+    Overlaps with far enough distance are ignored. 
+    Return type is a list of indices
+
+    Columns for the DataFrame input: xmin, ymin, xmax, ymax, confidence, class, name
+                                     float64, float64, float64, float64, float64, int64, object (string)
+
+    frame: the opencv frame object
+
+    @param results: a list of bounding_boxes (pandas Dataframe). Each row is a box.
+    """
+    indices_to_remove = []
+    
+    # iterate through each row
+    for i, row in bounding_boxes.iterrows():
+        # iterate through each row again
+        for j, row2 in bounding_boxes.iterrows():
+            # don't compare to self
+            if i == j:
+                continue
+
+            # if the x values overlap
+            if row['xmin'] <= row2['xmax'] and row['xmax'] >= row2['xmin']:
+                # if the y values overlap
+                if row['ymin'] <= row2['ymax'] and row['ymax'] >= row2['ymin']:
+                    # if the distance between the centroids is greater than 100, ignore
+                    if np.linalg.norm([row['centroid_x'] - row2['centroid_x'], row['centroid_y'] - row2['centroid_y']]) > 100:
+                        continue
+                    
+                    # if the confidence is higher, remove the other one
+                    if row['confidence'] > row2['confidence']:
+                        indices_to_remove.append(j)
+                    else:
+                        indices_to_remove.append(i)
+
+    return indices_to_remove
+    
+
 def pickup_order (bounding_boxes: pd.DataFrame, frame) -> pd.DataFrame:
     """Determines the optimal order to pick up objects in. Returns a sorted version of bounding_boxes.
 
