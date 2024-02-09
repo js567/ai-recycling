@@ -167,6 +167,12 @@ def get_occlusions_v2 (bounding_boxes: pd.DataFrame, frame) -> list:
             if row['xmin'] <= row2['xmax'] and row['xmax'] >= row2['xmin']:
                 # if the y values overlap
                 if row['ymin'] <= row2['ymax'] and row['ymax'] >= row2['ymin']:
+                    # set center of each box
+                    row['centroid_x'] = (row['xmin'] + row['xmax'])/2
+                    row['centroid_y'] = (row['ymin'] + row['ymax'])/2
+                    row2['centroid_x'] = (row2['xmin'] + row2['xmax'])/2
+                    row2['centroid_y'] = (row2['ymin'] + row2['ymax'])/2
+                    
                     # if the distance between the centroids is greater than 100, ignore
                     if np.linalg.norm([row['centroid_x'] - row2['centroid_x'], row['centroid_y'] - row2['centroid_y']]) > 100:
                         continue
@@ -192,7 +198,7 @@ def pickup_order (bounding_boxes: pd.DataFrame, frame) -> pd.DataFrame:
     """
 
     # figure out which ones are overlapping
-    indices_to_remove = get_occlusions(bounding_boxes, frame)
+    indices_to_remove = get_occlusions_v2(bounding_boxes, frame)
 
     # drop those rows from the data frame
     items_to_pickup = bounding_boxes.drop(indices_to_remove)
