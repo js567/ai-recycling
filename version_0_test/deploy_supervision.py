@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.path as MPLP
 import os
 import cv2
+from collections import defaultdict
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 SKIP_FRAMES = 2
@@ -67,9 +68,9 @@ def main():
     # Class counting.
     # We'll put seen IDs in a set, and count the number of unique IDs for any given class.
     # TODO: Change to a region/line based counting system. Supervision has ways to do this.
-    seen_ids = set()
+    seen_ids = [] # We'll limit this size to 30, and remove the oldest IDs when it gets too big
     class_counts = {}
-    consecutive_frames = {}
+    consecutive_frames = defaultdict(int)
 
     count = 0
     while True:
@@ -90,12 +91,11 @@ def main():
         # Counting
         try:
             for class_id, tracker_id in zip(detections.class_id, detections.tracker_id):
-                if tracker_id not in seen_ids and tracker_id not in consecutive_frames:
-                    consecutive_frames[tracker_id] = 1
-                elif tracker_id not in seen_ids and tracker_id in consecutive_frames:
+                if tracker_id not in seen_ids:
                     consecutive_frames[tracker_id] += 1
                     if consecutive_frames[tracker_id] >= consecutive_frames_threshold:
-                        seen_ids.add(tracker_id)
+                        seen_ids.append(tracker_id)
+                        seen_ids = seen_ids[-30:]
                         class_counts[class_id] = class_counts.get(class_id, 0) + 1
                 # Delete IDs that are not tracked consistently
                 if tracker_id not in detections.tracker_id:
