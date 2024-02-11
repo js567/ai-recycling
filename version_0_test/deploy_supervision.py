@@ -51,7 +51,7 @@ def main():
     if sv.__version__ < '0.18.0':
         raise ValueError('Supervision version must be at least 0.18.0')
     
-    weights = 'C:/Users/keywo/OneDrive/Desktop/Capstone/ai-recycling/version_0_test/best.pt' # Update this to the path of the best.pt file
+    weights = 'best.pt' # Update this to the path of the best.pt file
     model = torch.hub.load('ultralytics/yolov5', 'custom', path=weights, force_reload=True)
     print("Model loaded")
 
