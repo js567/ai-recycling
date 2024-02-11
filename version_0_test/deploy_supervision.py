@@ -50,7 +50,7 @@ def main():
     if sv.__version__ < '0.18.0':
         raise ValueError('Supervision version must be at least 0.18.0')
     
-    weights = 'best.pt' # Update this to the path of the best.pt file
+    weights = 'C:/Users/keywo/OneDrive/Desktop/Capstone/ai-recycling/version_0_test/best.pt' # Update this to the path of the best.pt file
     model = torch.hub.load('ultralytics/yolov5', 'custom', path=weights, force_reload=True)
     print("Model loaded")
 
@@ -60,6 +60,8 @@ def main():
     box_annotator = sv.BoundingBoxAnnotator() 
     label_annotator = sv.LabelAnnotator()
 
+    consecutive_frames_threshold = 10
+
     # smoother = sv.DetectionsSmoother()
 
     # Class counting.
@@ -67,6 +69,7 @@ def main():
     # TODO: Change to a region/line based counting system. Supervision has ways to do this.
     seen_ids = set()
     class_counts = {}
+    consecutive_frames = {}
 
     count = 0
     while True:
@@ -87,9 +90,16 @@ def main():
         # Counting
         try:
             for class_id, tracker_id in zip(detections.class_id, detections.tracker_id):
-                if tracker_id not in seen_ids:
-                    seen_ids.add(tracker_id)
-                    class_counts[class_id] = class_counts.get(class_id, 0) + 1
+                if tracker_id not in seen_ids and tracker_id not in consecutive_frames:
+                    consecutive_frames[tracker_id] = 1
+                elif tracker_id not in seen_ids and tracker_id in consecutive_frames:
+                    consecutive_frames[tracker_id] += 1
+                    if consecutive_frames[tracker_id] >= consecutive_frames_threshold:
+                        seen_ids.add(tracker_id)
+                        class_counts[class_id] = class_counts.get(class_id, 0) + 1
+                # Delete IDs that are not tracked consistently
+                if tracker_id not in detections.tracker_id:
+                    consecutive_frames.pop(tracker_id, None)
         except TypeError as e:
             # Sometimes the detections are empty, and zip doesn't like that
             pass
