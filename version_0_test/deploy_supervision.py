@@ -55,7 +55,7 @@ def main():
     model = torch.hub.load('ultralytics/yolov5', 'custom', path=weights, force_reload=True)
     print("Model loaded")
 
-    gen = sv.get_video_frames_generator(source_path='C:/Users/keywo/OneDrive/Desktop/Capstone/ai-recycling/version_0_test/far_west_test_video.mp4')
+    gen = sv.get_video_frames_generator(source_path='far_west_test_video.mp4')
     
     tracker = sv.ByteTrack() # TODO: figure out video framerate and pass it to the tracker
     box_annotator = sv.BoundingBoxAnnotator()
