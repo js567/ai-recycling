@@ -13,8 +13,6 @@ def intersect (b1: np.array, b2: np.array) -> bool:
     input format: [min_x, min_y, max_x, max_y]
     """
 
-    # b1[0] = left side, b1[2] = right side
-    # b1[1] = bottom, b1[3] = top
     x_overlap = (b1[0] <= b2[0] <= b1[2]) or (b1[0] <= b2[2] <= b1[2])
     y_overlap = (b1[1] <= b2[1] <= b1[3]) or (b1[1] <= b2[3] <= b1[3])
 
@@ -31,30 +29,26 @@ def get_occlusions (boxes: pd.DataFrame) -> list:
     box_columns = ['xmin', 'ymin', 'xmax', 'ymax']
     indices_to_remove = []
 
-    # iterate through each row
     for i, box_a in boxes.iterrows():
-        # iterate through each row again
         for j, box_b in boxes.iterrows():
-            # don't compare to self
-            # also, if j < i, then both of these rectangles have already been compared
-            # otherwise we do 2 times the number of comparisons
+            # ignore boxes we don't need to calculate
+            # if j is less than or equal to i, they've already been compared
             if j <= i:
                 continue
 
-            # get just the [xmin, ymin, xmax, ymax] part of each row
+            # get just the [xmin, ymin, xmax, ymax] part of each box
             bi, bj = box_a[box_columns].to_numpy(), box_b[box_columns].to_numpy()
 
-            # if they intersect, choose the one with less background showing
             if intersect(bi, bj):
-                # set diagonal of each box
+                # get diagonal of each box
                 diagonal_a = np.sqrt((box_a['xmax'] - box_a['xmin'])**2 + (box_a['ymax'] - box_a['ymin'])**2)
                 diagonal_b = np.sqrt((box_b['xmax'] - box_b['xmin'])**2 + (box_b['ymax'] - box_b['ymin'])**2)
 
-                # calculate size of each box
+                # calculate area of each box
                 area_a = (box_a['xmax'] - box_a['xmin']) * (box_a['ymax'] - box_a['ymin'])
                 area_b = (box_b['xmax'] - box_b['xmin']) * (box_b['ymax'] - box_b['ymin'])
 
-                # calculate size difference ratio
+                # calculate area difference ratio
                 size_diff_ratio = abs(area_a - area_b) / max(area_a, area_b)
 
                 # size threshold, for example, 0.5 means the size difference should not exceed 50%
@@ -69,8 +63,7 @@ def get_occlusions (boxes: pd.DataFrame) -> list:
                 if (centroid_distance > dist_threshold) and (size_diff_ratio < size_threshold):
                     continue
                 
-                # if the confidence is higher, swap the rows so the higher confidence
-                # one will be picked up first
+                # ignore the item with lower confidence
                 if box_a['confidence'] > box_b['confidence']:
                     indices_to_remove.append(j)
                 else:
