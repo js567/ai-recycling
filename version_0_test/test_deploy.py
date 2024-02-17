@@ -11,7 +11,6 @@ def intersect (b1: np.array, b2: np.array) -> bool:
     Takes two bounding boxes and determines if there's an intersection
 
     input format: [min_x, min_y, max_x, max_y]
-
     """
 
     # b1[0] = left side, b1[2] = right side
@@ -23,10 +22,7 @@ def intersect (b1: np.array, b2: np.array) -> bool:
 
 def get_occlusions (boxes: pd.DataFrame) -> list:
     """
-    Detects occlusions, if they are close enough, it will swap their order in the list of boxes
-    so the box with the higher confidence will be picked up first.
-
-    Modifies the dataframe in place and does not return anything.
+    Detects occlusions and returns a list of indices for which objects should be ignored.
 
     Columns for the DataFrame input: xmin, ymin, xmax, ymax, confidence, class, name
                                      float64, float64, float64, float64, float64, int64, object (string)
@@ -83,14 +79,11 @@ def get_occlusions (boxes: pd.DataFrame) -> list:
     return indices_to_remove
     
 def pickup_order (boxes: pd.DataFrame) -> pd.DataFrame:
-    """Determines the optimal order to pick up objects in. Returns a sorted version of bounding_boxes.
+    """
+    Determines the optimal order to pick up objects in. Returns a sorted version of bounding boxes passed in.
 
     Columns for the dataframe: xmin, ymin, xmax, ymax, confidence, class, name
                                float64, float64, float64, float64, float64, int64, object (string)
-
-    frame: opencv frame the bounding boxes are from
-
-    @param results: a list of bounding boxes (as a pandas dataframe)
     """
 
     # calculate centroids
