@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import test_deploy as t_pickup_order
 
-model = torch.hub.load('ultralytics/yolov5', 'custom', 'best.pt', force_reload=True)
+model = torch.hub.load('ultralytics/yolov5', 'custom', 'check.pt', force_reload=True)
 
 cap = cv2.VideoCapture('far_west_test_video.mp4')
 
@@ -12,10 +12,12 @@ while cap.isOpened():
     
     if not ret:
         break
-
+    
+    # get inference results and render them
     results = model(frame)
     rendered_output = np.squeeze(results.render())
-    ordered_boxes = t_pickup_order.pickup_order(results.pandas().xyxy[0], frame)
+    results_pd = results.pandas().xyxy[0]
+    ordered_boxes = t_pickup_order.pickup_order(results_pd)
 
     # label each item based on its priority
     # we can't just use i because for some reason iterrows()
