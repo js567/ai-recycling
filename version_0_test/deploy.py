@@ -17,7 +17,10 @@ while cap.isOpened():
     results = model(frame)
     rendered_output = np.squeeze(results.render())
     results_pd = results.pandas().xyxy[0]
-    ordered_boxes = t_pickup_order.pickup_order(results_pd)
+    ordered_boxes = t_pickup_order.pickup_order_v2(results_pd)
+
+    # print the ordered boxes
+    print(ordered_boxes)
 
     # label each item based on its priority
     # we can't just use i because for some reason iterrows()
