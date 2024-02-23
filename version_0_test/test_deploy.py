@@ -85,19 +85,6 @@ def pickup_order (boxes: pd.DataFrame) -> pd.DataFrame:
                                float64, float64, float64, float64, float64, int64, object (string)
     """
 
-    # # calculate centroids
-    # boxes['centroid_x'] = (boxes['xmin'] + boxes['xmax'])/2
-    # boxes['centroid_y'] = (boxes['ymin'] + boxes['ymax'])/2
-
-    # # figure out which item we're picking up
-    # # then remove it
-    # indices_to_remove = get_occlusions(boxes)
-    # boxes = boxes.drop(indices_to_remove)
-
-    # # sort indices by which one has the largest y value
-    # # this should give us the items that are the closest to the end of the line
-    # return boxes.sort_values(by=['centroid_y'], ascending=True)
-
     # figure out which ones are overlapping
     indices_to_remove = get_occlusions(boxes)
 
@@ -111,11 +98,6 @@ def pickup_order (boxes: pd.DataFrame) -> pd.DataFrame:
     # sort indices by which one has the largest y value
     # this should give us the items that are the closest to the end of the line
     return items_to_pickup.sort_values(by=['centroid_y'], ascending=True)
-
-# def swap_rows(df, row1, row2):
-#     "Swaps two rows in a dataframe. Returns the dataframe."
-#     df.iloc[row1], df.iloc[row2] =  df.iloc[row2].copy(), df.iloc[row1].copy()
-#     return df
 
 def swap_occlusions (boxes: pd.DataFrame) -> None:
     """
@@ -197,90 +179,3 @@ def pickup_order_v2 (bounding_boxes: pd.DataFrame) -> pd.DataFrame:
 
     return sorted_boxes
 
-def get_occlusions_v2 (bounding_boxes: pd.DataFrame) -> list:
-    """
-    Returns which objects are overlapping by iterating through columns and rows and drop the lower confidence.
-    Overlaps with far enough distance are ignored. 
-    Return type is a list of indices
-
-    Columns for the DataFrame input: xmin, ymin, xmax, ymax, confidence, class, name
-                                     float64, float64, float64, float64, float64, int64, object (string)
-
-    frame: the opencv frame object
-
-    @param results: a list of bounding_boxes (pandas Dataframe). Each row is a box.
-    """
-    indices_to_remove = []
-    
-    # iterate through each row
-    for i, row in bounding_boxes.iterrows():
-        # iterate through each row again
-        for j, row2 in bounding_boxes.iterrows():
-            # don't compare to self
-            if i == j:
-                continue
-
-            # if the x values overlap
-            if row['xmin'] <= row2['xmax'] and row['xmax'] >= row2['xmin']:
-                # if the y values overlap
-                if row['ymin'] <= row2['ymax'] and row['ymax'] >= row2['ymin']:
-                    # set center of each box
-                    row['centroid_x'] = (row['xmin'] + row['xmax'])/2
-                    row['centroid_y'] = (row['ymin'] + row['ymax'])/2
-                    row2['centroid_x'] = (row2['xmin'] + row2['xmax'])/2
-                    row2['centroid_y'] = (row2['ymin'] + row2['ymax'])/2
-
-                    # set diagonal of each box
-                    row['diagonal'] = np.sqrt((row['xmax'] - row['xmin'])**2 + (row['ymax'] - row['ymin'])**2)
-                    row2['diagonal'] = np.sqrt((row2['xmax'] - row2['xmin'])**2 + (row2['ymax'] - row2['ymin'])**2)
-
-                    # calculate size of each box
-                    row['size'] = (row['xmax'] - row['xmin']) * (row['ymax'] - row['ymin'])
-                    row2['size'] = (row2['xmax'] - row2['xmin']) * (row2['ymax'] - row2['ymin'])
-
-                    # calculate size difference ratio
-                    size_diff_ratio = abs(row['size'] - row2['size']) / max(row['size'], row2['size'])
-
-                    # size threshold, for example, 0.5 means the size difference should not exceed 50%
-                    size_threshold = 0.5
-
-                    # sum of diagonal of each box, and take 1/8 of the sum, use it as the distance threshold
-                    dist_threshold = (row['diagonal'] + row2['diagonal'])/8
-
-                    # if the euclidean distance between the centroids is greater than the threshold, ignore
-                    # if the size difference ratio is smaller than the threshold, ignore
-                    if (np.sqrt((row['centroid_x'] - row2['centroid_x'])**2 + (row['centroid_y'] - row2['centroid_y'])**2) > dist_threshold) and (size_diff_ratio < size_threshold):
-                        continue
-                    
-                    # if the confidence is higher, remove the other one
-                    if row['confidence'] > row2['confidence']:
-                        indices_to_remove.append(j)
-                    else:
-                        indices_to_remove.append(i)
-
-    return indices_to_remove
-
-def pickup_order_v3 (bounding_boxes: pd.DataFrame) -> pd.DataFrame:
-    """Determines the optimal order to pick up objects in. Returns a sorted version of bounding_boxes.
-
-    Columns for the dataframe: xmin, ymin, xmax, ymax, confidence, class, name
-                               float64, float64, float64, float64, float64, int64, object (string)
-
-    frame: opencv frame the bounding boxes are from
-
-    @param results: a list of bounding boxes (as a pandas dataframe)
-    """
-
-    # figure out which ones are overlapping
-    indices_to_remove = get_occlusions_v2(bounding_boxes)
-
-    # drop those rows from the data frame
-    items_to_pickup = bounding_boxes.drop(indices_to_remove)
-
-    # calculate centroids
-    items_to_pickup['centroid_x'] = (items_to_pickup['xmin'] + items_to_pickup['xmax'])/2
-    items_to_pickup['centroid_y'] = (items_to_pickup['ymin'] + items_to_pickup['ymax'])/2
-
-    # sort indices by which one has the largest y value
-    # this should give us the items that are the closest to the end of the line
-    return items_to_pickup.sort_values(by=['centroid_y'], ascending=True)
